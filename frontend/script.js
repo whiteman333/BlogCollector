@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // 后端API的地址
     const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -12,22 +12,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const errorDetails = document.querySelector('#error-message p');
     const refreshButton = document.getElementById('refresh-button');
+    const searchInput = document.getElementById('search-input'); // [新增] 获取搜索框
 
-    let allArticles = [];
+    let allArticles = []; // 存储从后端获取的所有文章的原始列表
 
     /**
      * 将文章渲染到 DOM.
      */
     const renderArticles = (articles) => {
         articleContainer.innerHTML = '';
-        if (articles.length === 0 && loadingIndicator.style.display === 'none') {
-            articleContainer.innerHTML = `<p class="text-gray-500 col-span-full text-center">未找到任何文章。</p>`;
+        if (articles.length === 0) {
+            articleContainer.innerHTML = `<p class="text-gray-500 col-span-full text-center">No articles found matching your criteria.</p>`;
         } else {
             articles.forEach(article => {
                 const info = article.info;
                 const articleEl = document.createElement('div');
                 articleEl.className = 'article-card';
-                
+
                 articleEl.innerHTML = `
                     <div class="p-6">
                         <p class="text-sm text-indigo-500 font-semibold mb-2">${article.sourceName}</p>
@@ -42,7 +43,34 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     };
-    
+
+    /**
+     * [新增] 核心过滤和渲染函数
+     * 根据当前的侧边栏选择和搜索框内容来过滤和显示文章
+     */
+    const applyFilters = () => {
+        const sourceFilterButton = document.querySelector('aside button.active');
+        const sourceName = sourceFilterButton ? sourceFilterButton.textContent : 'All Feeds';
+        const searchTerm = searchInput.value.toLowerCase();
+
+        let filteredArticles = allArticles;
+
+        // 1. 应用来源过滤器
+        if (sourceName !== '所有源') {
+            filteredArticles = filteredArticles.filter(article => article.sourceName === sourceName);
+        }
+
+        // 2. 应用关键词搜索过滤器
+        if (searchTerm) {
+            filteredArticles = filteredArticles.filter(article =>
+                article.title.toLowerCase().includes(searchTerm) ||
+                article.description.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        renderArticles(filteredArticles);
+    };
+
     /**
      * 根据从后端获取的源列表填充侧边栏.
      */
@@ -53,14 +81,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const allButton = document.createElement('li');
         allButton.innerHTML = `<button class="w-full text-left px-4 py-2 rounded-md font-medium">所有源</button>`;
-        allButton.querySelector('button').addEventListener('click', (e) => filterBySource('All Feeds', e.currentTarget));
+        allButton.querySelector('button').addEventListener('click', (e) => {
+            document.querySelectorAll('aside button').forEach(btn => btn.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            applyFilters();
+        });
         filterList.appendChild(allButton);
 
         sources.forEach(source => {
             const sourceButton = document.createElement('li');
             sourceButton.innerHTML = `<button class="w-full text-left px-4 py-2 rounded-md font-medium">${source.name}</button>`;
-            sourceButton.querySelector('button').addEventListener('click', (e) => filterBySource(source.name, e.currentTarget));
-            
+            sourceButton.querySelector('button').addEventListener('click', (e) => {
+                document.querySelectorAll('aside button').forEach(btn => btn.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                applyFilters();
+            });
+
             if (source.category === 'organization') {
                 orgSourceList.appendChild(sourceButton);
             } else if (source.category === 'individual') {
@@ -70,22 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
-     * 根据信息源名称过滤显示的文章.
-     */
-    const filterBySource = (sourceName, clickedButton) => {
-        document.querySelectorAll('aside button').forEach(btn => {
-            btn.classList.remove('active');
-});
-        clickedButton.classList.add('active');
-
-        const filteredArticles = (sourceName === 'All Feeds')
-            ? allArticles
-            : allArticles.filter(article => article.sourceName === sourceName);
-        renderArticles(filteredArticles);
-    };
-
-    /**
-     * 核心的数据获取与渲染逻辑 (纯后端模式)
+     * 核心的数据获取与渲染逻辑
      */
     const fetchAndRender = async () => {
         loadingIndicator.style.display = 'flex';
@@ -93,30 +114,31 @@ document.addEventListener('DOMContentLoaded', () => {
         articleContainer.innerHTML = '';
 
         try {
-            // 1. 从后端获取所有源的配置来填充侧边栏
-            // (仅在首次加载时或需要时)
             if (filterList.children.length === 0) {
-                 const sourcesResponse = await fetch(`${API_BASE_URL}/sources`);
-                 if (!sourcesResponse.ok) throw new Error('无法获取源配置');
-                 const allSourceConfigs = await sourcesResponse.json();
-                 populateSidebar(allSourceConfigs);
+                const sourcesResponse = await fetch(`${API_BASE_URL}/sources`);
+                if (!sourcesResponse.ok) throw new Error('无法获取源配置');
+                const allSourceConfigs = await sourcesResponse.json();
+                populateSidebar(allSourceConfigs);
             }
 
-            // 2. 从后端获取所有文章
             const articlesResponse = await fetch(`${API_BASE_URL}/articles`);
             if (!articlesResponse.ok) throw new Error('无法从后端获取文章列表');
-            
+
             allArticles = await articlesResponse.json();
             loadingIndicator.style.display = 'none';
 
             if (allArticles.length === 0) {
-                 errorDetails.textContent = "后端成功响应，但未能获取到任何文章。";
-                 errorMessage.style.display = 'flex';
-                 return;
+                errorDetails.textContent = "后端成功响应，但未能获取到任何文章。";
+                errorMessage.style.display = 'flex';
+                return;
             }
-            
+
             // 默认选中 "所有源" 并渲染
-            filterBySource('All Feeds', filterList.querySelector('button'));
+            const allFeedsButton = filterList.querySelector('button');
+            if (allFeedsButton) {
+                allFeedsButton.classList.add('active');
+            }
+            applyFilters();
 
         } catch (error) {
             console.error("获取数据失败:", error);
@@ -128,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const init = () => {
         refreshButton.addEventListener('click', fetchAndRender);
+        searchInput.addEventListener('input', applyFilters); // [新增] 为搜索框添加事件监听
         fetchAndRender(); // 初始加载
     };
 
