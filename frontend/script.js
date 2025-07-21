@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // 后端API的地址
-    const API_BASE_URL = 'http://localhost:3000/api';
+    const API_BASE_URL = 'https://blogcollector.onrender.com/api';
 
     // 获取 DOM 元素
     const articleContainer = document.getElementById('article-container');
