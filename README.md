@@ -20,6 +20,7 @@
     - [2. Start the backend](#2-start-the-backend)
     - [3. Preview the frontend locally](#3-preview-the-frontend-locally)
   - [Project Structure](#project-structure)
+  - [Deploy to the Web (Render + GitHub Pages)](#deploy-to-the-web-render--github-pages)
   - [Add / Modify Data Sources](#add--modify-data-sources)
     - [1. RSS sources](#1-rss-sources)
     - [2. Scraping targets](#2-scraping-targets)
@@ -55,13 +56,10 @@ $ npm start     # default PORT=3000, can be overridden
 ### 3. Preview the frontend locally
 
 ```bash
-$ cd ../frontend
-# any static server works; two common options:
-$ npx serve .          # requires the serve package
-# or
-$ python3 -m http.server 8080
+$ cd docs              # static assets now live in docs/
+$ npx serve .           # or python3 -m http.server 8080
 ```
-Then visit `http://localhost:8080` (or the URL printed by *serve*).
+Then visit `http://localhost:8080`.
 
 > 💡 VS Code users can also install **Live Server** and choose *Open with Live Server*.
 
@@ -72,14 +70,29 @@ Then visit `http://localhost:8080` (or the URL printed by *serve*).
 ```text
 BlogCollector/
 ├─ backend/            # Node.js / Express backend
-│  ├─ server.js        # entry file
+│  ├─ server.js
 │  └─ ...
-├─ frontend/           # static frontend
+├─ docs/               # static frontend (published via GitHub Pages)
 │  ├─ index.html
 │  ├─ script.js
 │  └─ style.css
 └─ README.md
 ```
+
+---
+
+## Deploy to the Web (Render + GitHub Pages)
+
+| Part     | Platform     | Steps                                                                                                                                    |
+| -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend  | Render       | Connect the repo → New **Web Service** → root dir `backend` → Build `npm install` / Start `npm start` → get `https://<app>.onrender.com` |
+| Frontend | GitHub Pages | Settings → Pages → Source `main` / Folder `/docs` → Save → access `https://<user>.github.io/<repo>/`                                     |
+
+Update `docs/script.js`:
+```js
+const API_BASE_URL = 'https://<app>.onrender.com/api';
+```
+Now anyone can open the GitHub Pages URL and the site will call your Render API.
 
 ---
 
